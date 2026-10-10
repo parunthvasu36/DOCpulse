@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DocPulse — Phone Dept Display</title>
+<style>
+:root{
+  --sky:#5b5bd6; --skydark:#3f3fb0; --skylight:#f1f0fb; --white:#ffffff;
+  --text:#1e1b2e; --muted:#6b7280; --border:#e4e2f2; --bg:#f7f7fb;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;
+  display:flex;flex-direction:column;padding:10px 20px 18px;padding-top:calc(8px + env(safe-area-inset-top,0px));}
+.icon{width:18px;height:18px;flex-shrink:0;vertical-align:middle;}
+.icon-lg{width:26px;height:26px;}
+
+.tvHeader{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-shrink:0;}
+.tvHeader h1{color:var(--skydark);font-size:17px;margin:0;font-weight:800;display:flex;align-items:center;gap:8px;}
+.tvHeader .status{font-size:11px;color:var(--muted);}
+.tvHeader .icon-lg{width:20px;height:20px;}
+#ticker{margin-bottom:10px;flex-shrink:0;}
+
+.tvgrid{display:grid;grid-template-columns:minmax(0,1.5fr) 220px minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:18px;flex:1;min-height:0;}
+.tvgrid>.card{min-height:0;}
+@media (max-width:1000px){html,body{height:auto;} body{display:block;} .tvgrid{display:flex;flex-direction:column;} .chatCard{height:480px;} .doctorCard{max-height:none;}}
+
+.card{background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px;box-shadow:0 4px 16px rgba(0,60,90,.06);}
+.card h2{color:var(--skydark);font-size:15px;margin:0 0 14px;display:flex;align-items:center;gap:8px;}
+
+.calCard{overflow:auto;}
+.chatCard{flex:1;min-height:0;display:flex;flex-direction:column;}
+.chatCard h2{flex-shrink:0;}
+
+table.cal{width:100%;border-collapse:separate;border-spacing:7px;table-layout:fixed;min-width:420px;}
+.calNav{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:14px;}
+.calNav span{font-weight:800;font-size:16px;color:var(--skydark);}
+table.cal th{font-size:12px;color:var(--muted);padding:6px 4px;text-align:left;font-weight:700;}
+table.cal td{background:var(--skylight);border:1px solid #bdb9de;box-shadow:0 2px 6px rgba(0,0,0,.45);border-radius:8px;vertical-align:top;height:90px;padding:7px;font-size:12px;cursor:pointer;}
+table.cal td:hover{box-shadow:0 2px 6px rgba(0,0,0,.45),inset 0 0 0 2px var(--sky);}
+table.cal td:empty{background:transparent;border-color:transparent;box-shadow:none;cursor:default;}
+table.cal td .daynum{font-weight:700;font-size:12px;color:var(--text);}
+table.cal td .entry{background:var(--sky);color:#fff;border-radius:6px;padding:2px 6px;margin-top:4px;font-size:10px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+
+.chatMessages{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px;}
+.bubbleRow{display:flex;}
+.bubble{max-width:75%;padding:12px 17px;border-radius:16px;font-size:15px;background:var(--white);border:1px solid var(--border);box-shadow:0 2px 6px rgba(0,50,80,.06);}
+.bubble .who{font-size:11px;font-weight:700;margin-bottom:2px;color:var(--skydark);}
+.bubble .when{font-size:10px;opacity:.7;margin-top:4px;}
+.voiceMsg audio{max-width:220px;height:36px;}
+
+
+.modal-bg{position:fixed;inset:0;background:rgba(20,15,40,.5);display:none;align-items:center;justify-content:center;z-index:50;padding:16px;}
+.modal-bg.show{display:flex;}
+.modal{background:var(--white);border-radius:14px;padding:26px;max-width:460px;width:100%;max-height:80vh;overflow-y:auto;}
+.modal h3{margin-top:0;color:var(--skydark);font-size:20px;}
+.entryrow{padding:10px 0;border-bottom:1px solid var(--border);font-size:16px;}
+.modal button.secondary{background:var(--skylight);color:var(--text);border:1px solid var(--border);padding:10px 18px;border-radius:8px;cursor:pointer;font-size:15px;font-weight:600;margin-top:14px;}
+.chatImg{display:block;max-width:100%;max-height:220px;border-radius:10px;margin-top:4px;}
+.fileLink{display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none;padding:4px 0;}
+.fileLink small{display:block;opacity:.75;font-size:11px;}
+.fileCaption{margin-top:6px;}
+.voiceMsg audio{width:240px;max-width:100%;}
+.doctorCard{padding:14px;overflow-y:auto;}
+.doctorList{display:flex;flex-direction:column;gap:6px;}
+.doctorItem{display:flex;align-items:center;padding:5px 8px;border-radius:8px;background:var(--skylight);border:1px solid var(--border);}
+.docLight{width:20px;height:20px;flex-shrink:0;margin-right:9px;border:2px solid #1e1b2e;border-radius:5px;background:#fff;display:flex;align-items:center;justify-content:center;}
+.docLight::after{content:'';width:10px;height:10px;border-radius:50%;}
+.doctorItem.present .docLight::after{background:#22c55e;box-shadow:0 0 7px 2px rgba(34,197,94,.75);}
+.doctorItem.leave .docLight::after{background:#ef4444;box-shadow:0 0 7px 2px rgba(239,68,68,.75);}
+.doctorName{font-size:13px;font-weight:700;color:var(--text);word-break:break-word;line-height:1.25;}
+</style>
+</head>
+<body>
+
+<div class="tvHeader">
+  <h1><svg class="icon icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>DocPulse — Live Doctor Status</h1>
+  <span class="status" id="tvStatus"></span>
+</div>
+
+<div id="ticker" style="display:none;"></div>
+
+<div class="tvgrid">
+  <div class="card calCard">
+      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>Calendar</h2>
+      <div id="calTV"></div>
+    </div>
+  <div class="card doctorCard">
+    <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>Today's Doctor Status</h2>
+    <div class="doctorList" id="doctorListTV"></div>
+  </div>
+  <div class="card chatCard">
+      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>Live Updates</h2>
+      <div class="chatMessages" id="chatMessagesTV"></div>
+    </div>
+</div>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3 id="modalDate"></h3>
+    <div id="modalEntries"></div>
+    <button class="secondary" id="modalDoneBtn">Done</button>
+  </div>
+</div>
+
+<script src="/ticker.js"></script>
+<script>
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+function fmtTime(ts){ try{ return new Date(ts).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});}catch(e){return '';} }
+function dateKey(y,m,d){ return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+let calEntries = [];
+const today = new Date();
+const calState = {y: today.getFullYear(), m: today.getMonth()};
+
+function renderCalendar(){
+  const y = calState.y, m = calState.m;
+  const first = new Date(y,m,1);
+  const startDow = first.getDay();
+  const daysInMonth = new Date(y,m+1,0).getDate();
+
+  let html = `<div class="calNav"><span>${MONTH_NAMES[m]} ${y}</span></div>`;
+  html += '<table class="cal"><tr>' + ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<th>${d}</th>`).join('') + '</tr><tr>';
+  for(let i=0;i<startDow;i++) html += '<td></td>';
+  let col = startDow;
+  for(let d=1; d<=daysInMonth; d++){
+    const key = dateKey(y,m,d);
+    const entries = calEntries.filter(e=>e.date===key);
+    html += `<td data-date="${key}"><div class="daynum">${d}</div>`;
+    entries.slice(0,2).forEach(e=> html += `<div class="entry">${escapeHtml(e.text)}</div>`);
+    if(entries.length>2) html += `<div class="entry">+${entries.length-2} more</div>`;
+    html += '</td>';
+    col++;
+    if(col===7 && d!==daysInMonth){ html+='</tr><tr>'; col=0; }
+  }
+  while(col<7 && col!==0){ html+='<td></td>'; col++; }
+  html += '</tr></table>';
+  document.getElementById('calTV').innerHTML = html;
+
+  document.querySelectorAll('#calTV td[data-date]').forEach(td=>{
+    td.addEventListener('click', ()=> openModal(td.getAttribute('data-date')));
+  });
+}
+
+function openModal(dateStr){
+  document.getElementById('modalDate').textContent = new Date(dateStr+'T00:00:00').toDateString();
+  const entries = calEntries.filter(e=>e.date===dateStr);
+  document.getElementById('modalEntries').innerHTML = entries.length
+    ? entries.map(e=>`<div class="entryrow"><b>${escapeHtml(e.author||'')}</b>: ${escapeHtml(e.text)}</div>`).join('')
+    : '<div style="color:var(--muted);">No entries for this day.</div>';
+  document.getElementById('modalBg').classList.add('show');
+}
+document.getElementById('modalDoneBtn').onclick = ()=> document.getElementById('modalBg').classList.remove('show');
+document.getElementById('modalBg').addEventListener('click', (e)=>{ if(e.target.id==='modalBg') document.getElementById('modalBg').classList.remove('show'); });
+
+const ICON_FILE = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>';
+function fmtSize(n){ if(!n) return ''; return n>1048576 ? (n/1048576).toFixed(1)+' MB' : Math.max(1,Math.round(n/1024))+' KB'; }
+function messageContent(m){
+  if(m.type==='voice'){
+    const src = m.fileId ? '/api/files/'+m.fileId : (m.audio||'');
+    return `<div class="voiceMsg"><audio controls preload="metadata" src="${src}"></audio></div>`;
+  }
+  if(m.type==='file'){
+    const url = '/api/files/'+m.fileId;
+    const cap = m.text ? `<div class="fileCaption">${escapeHtml(m.text)}</div>` : '';
+    if(/^image\//.test(m.fileType||'')) return `<a href="${url}" target="_blank" rel="noopener"><img class="chatImg" src="${url}" alt="${escapeHtml(m.fileName)}"></a>${cap}`;
+    return `<a class="fileLink" href="${url}" target="_blank" rel="noopener">${ICON_FILE}<span><b>${escapeHtml(m.fileName)}</b><small>${fmtSize(m.fileSize)}</small></span></a>${cap}`;
+  }
+  return escapeHtml(m.text);
+}
+let lastMsgSig = '';
+function renderChat(messages){
+  const el = document.getElementById('chatMessagesTV');
+  const stick = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+  if(!messages.length){ el.innerHTML = '<div style="color:var(--muted);">No updates yet.</div>'; return; }
+  el.innerHTML = messages.slice().sort((a,b)=>a.ts-b.ts).map(m=>
+    `<div class="bubbleRow"><div class="bubble"><div class="who">${escapeHtml(m.author)}</div>${messageContent(m)}<div class="when">${fmtTime(m.ts)}</div></div></div>`
+  ).join('');
+  if(stick) el.scrollTop = el.scrollHeight;
+  el.querySelectorAll('img.chatImg').forEach(img=>{ if(!img.complete) img.addEventListener('load', ()=>{ if(stick) el.scrollTop = el.scrollHeight; }); });
+}
+
+function renderDoctors(doctors){
+  const el = document.getElementById('doctorListTV');
+  if(!doctors.length){ el.innerHTML = '<div style="color:var(--muted);font-size:13px;">No doctors added yet.</div>'; return; }
+  el.innerHTML = doctors.map(d => {
+    const here = d.status === 'present';
+    return `<div class="doctorItem ${here?'present':'leave'}"><span class="docLight" role="img" aria-label="${here?'Present':'On leave'}" title="${here?'Present':'On leave'}"></span><div class="doctorName">${escapeHtml(d.name)}</div></div>`;
+  }).join('');
+}
+
+var ticker = DocTicker.create(document.getElementById('ticker'), {hideWhenEmpty:true});
+
+async function poll(){
+  try{
+    const [messages, cal, doctors, tk] = await Promise.all([
+      fetch('/api/messages').then(r=>r.json()),
+      fetch('/api/calendar').then(r=>r.json()),
+      fetch('/api/doctors').then(r=>r.json()),
+      fetch('/api/ticker').then(r=>r.json()).catch(function(){ return {items:[]}; })
+    ]);
+    calEntries = cal;
+    renderCalendar();
+    const sig = messages.length + ':' + (messages.length ? messages[messages.length-1].id : 0);
+    if(sig !== lastMsgSig){ lastMsgSig = sig; renderChat(messages); }
+    renderDoctors(doctors);
+    ticker.update(tk);
+    document.getElementById('tvStatus').textContent = '● live — updated ' + new Date().toLocaleTimeString();
+  }catch(e){
+    document.getElementById('tvStatus').textContent = '● connection lost, retrying...';
+  }
+}
+
+poll();
+setInterval(poll, 4000);
+</script>
+</body>
+</html>
